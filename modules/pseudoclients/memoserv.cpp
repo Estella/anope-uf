@@ -14,6 +14,7 @@
 class MemoServCore : public Module, public MemoServService
 {
 	Reference<BotInfo> MemoServ;
+	bool hidehelp;
 
 	bool SendMemoMail(NickCore *nc, MemoInfo *mi, Memo *m)
 	{
@@ -39,6 +40,7 @@ class MemoServCore : public Module, public MemoServService
 	MemoServCore(const Anope::string &modname, const Anope::string &creator) : Module(modname, creator, PSEUDOCLIENT | VENDOR),
 		MemoServService(this)
 	{
+		hidehelp = false;
 	}
 
 	MemoResult Send(const Anope::string &source, const Anope::string &target, const Anope::string &message, bool force) anope_override
@@ -153,6 +155,12 @@ class MemoServCore : public Module, public MemoServService
 	void OnReload(Configuration::Conf *conf) anope_override
 	{
 		const Anope::string &msnick = conf->GetModule(this)->Get<const Anope::string>("client");
+		Anope::string mscs = conf->GetModule(this)->Get<const Anope::string>("integrated");
+		if (mscs[0] == 'y' || mscs[0] == 'Y')
+			hidehelp = true;
+
+		if (mscs[0] == 'n' || mscs[0] == 'N')
+			hidehelp = false;
 
 		if (msnick.empty())
 			throw ConfigException(Module::name + ": <client> must be defined");
@@ -211,6 +219,8 @@ class MemoServCore : public Module, public MemoServService
 	{
 		if (!params.empty() || source.c || source.service != *MemoServ)
 			return EVENT_CONTINUE;
+		if (hidehelp)
+			return EVENT_CONTINUE;
 		source.Reply(_("\002%s\002 is a utility allowing IRC users to send short\n"
 			"messages to other IRC users, whether they are online at\n"
 			"the time or not, or to channels(*). Both the sender's\n"
@@ -223,6 +233,8 @@ class MemoServCore : public Module, public MemoServService
 	void OnPostHelp(CommandSource &source, const std::vector<Anope::string> &params) anope_override
 	{
 		if (!params.empty() || source.c || source.service != *MemoServ)
+			return;
+		if (hidehelp)
 			return;
 		source.Reply(_(" \n"
 			"Type \002%s%s HELP \037command\037\002 for help on any of the\n"
